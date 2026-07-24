@@ -1,6 +1,5 @@
 package com.example.colorpicker
 
-import android.R
 import android.content.ClipData
 import android.os.Bundle
 import android.widget.Toast
@@ -14,10 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.tooling.preview.Preview
 import com.example.colorpicker.ui.theme.ColorPickerTheme
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -31,7 +28,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -39,7 +35,6 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SnackbarHost
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -47,15 +42,12 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalClipboardManager
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import android.graphics.Color as AndroidColor
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.core.graphics.ColorUtils
-import kotlinx.serialization.descriptors.PrimitiveKind
 
 
 class MainActivity : ComponentActivity() {
@@ -137,10 +129,10 @@ fun ColorPickerScreen(modifier: Modifier = Modifier){
         Button(
             onClick = {
                 val clipEntry = ClipEntry(
-                    ClipData.newPlainText("HEX Color", hexCode)  //for some reason it's the standard way
+                    ClipData.newPlainText("HEX Color", hexCode)
                 )
                 scope.launch {
-                    clipboard.setClipEntry(clipEntry)    //some functions require coroutines since they are asynchronous
+                    clipboard.setClipEntry(clipEntry)
                 }
                 Toast.makeText(context, "Copied HEX code", Toast.LENGTH_SHORT).show()
             },
@@ -185,7 +177,6 @@ fun RgbSliders(color: Color, onColorChange: (Color) -> Unit){
 
 @Composable
 fun HsvSliders(color: Color, onColorChange: (Color) -> Unit) {
-    // 1. Keep track of HSV state locally without re-calculating on every 'color' change
     var hsv by remember {
         mutableStateOf(
             FloatArray(3).apply {
@@ -194,10 +185,8 @@ fun HsvSliders(color: Color, onColorChange: (Color) -> Unit) {
         )
     }
 
-    // 2. Sync local state if external 'color' changes (e.g., switched tabs from RGB mode)
     LaunchedEffect(color) {
         val currentRgbFromHsv = Color(AndroidColor.HSVToColor(hsv))
-        // Only re-parse if the incoming color isn't what we just generated
         if (color != currentRgbFromHsv) {
             val newHsv = FloatArray(3)
             AndroidColor.colorToHSV(color.toArgb(), newHsv)
@@ -211,7 +200,6 @@ fun HsvSliders(color: Color, onColorChange: (Color) -> Unit) {
             value = hsv[0],
             valueRange = 0f..360f,
             onValueChange = { newHue ->
-                // Clamp to prevent 360f wrapping to 0f
                 val safeHue = if (newHue >= 360f) 359.99f else newHue
                 val updatedHsv = hsv.copyOf().apply { this[0] = safeHue }
                 hsv = updatedHsv
@@ -268,7 +256,7 @@ fun HslSliders(color: Color, onColorChange: (Color) -> Unit) {
             onValueChange = { newHue ->
                 val safeHue = if (newHue >= 360f) 359.99f else newHue
                 val updatedHsl = hsl.copyOf().apply { this[0] = safeHue }
-                hsl = updatedHsl // FIX: Assigning updatedHsl updates the state so UI re-renders!
+                hsl = updatedHsl
                 onColorChange(Color(ColorUtils.HSLToColor(updatedHsl)))
             }
         )
