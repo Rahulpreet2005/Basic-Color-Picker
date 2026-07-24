@@ -1,5 +1,6 @@
 package com.example.colorpicker
 
+import android.R
 import android.content.ClipData
 import android.os.Bundle
 import android.widget.Toast
@@ -25,21 +26,35 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalClipboardManager
 import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
+import android.graphics.Color as AndroidColor
+import androidx.compose.ui.graphics.toArgb
+import androidx.core.graphics.ColorUtils
+import kotlinx.serialization.descriptors.PrimitiveKind
+
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -48,91 +63,63 @@ class MainActivity : ComponentActivity() {
         setContent {
             ColorPickerTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    //We're going to place here all the functions we are going to use
                     ColorPickerScreen(modifier = Modifier.padding(innerPadding))
                 }
             }
         }
     }
 }
+
 @Composable
 fun ColorPickerScreen(modifier: Modifier = Modifier){
-    var red by remember { mutableFloatStateOf(0.5f) }
-    var green by remember { mutableFloatStateOf(0.5f)}
-    var blue by remember { mutableFloatStateOf(0.5f)}
-    val currentColor = Color(red = red, green = green, blue = blue)
-    val redInt = (red * 255).toInt()
-    val greenInt = (green * 255).toInt()
-    val blueInt = (blue * 255).toInt()
+    var currentColor by remember {mutableStateOf(Color(0.5f, 0.5f, 0.5f))}
+    var selectedMode by remember {mutableStateOf(ColorMode.RGB)}
+    val hexCode = String.format("#%06X", 0xFFFFFF and currentColor.toArgb())
 
-    val hexCode = String.format("#%02X%02X%02X", redInt, greenInt, blueInt)
-    val clipboard = LocalClipboard.current
-    val scope = rememberCoroutineScope()
-    val context = LocalContext.current
-
-
-    //The main container
     Column(
-        //how this column behaves in the layout
         modifier = modifier
             .fillMaxSize()
             .padding(16.dp),
-        //how items are going to align horizontally
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
-    ) {
+    ){
+        SingleChoiceSegmentedButtonRow(
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            ColorMode.entries.forEachIndexed {index, mode ->
+                SegmentedButton(
+                    selected = selectedMode == mode,
+                    onClick = {selectedMode = mode},
+                    shape = SegmentedButtonDefaults.itemShape(index, ColorMode.entries.size)
+                ) {
+                    Text(mode.name)
+                }
+            }
+        }
         Box(
-            modifier = Modifier   //Modifiers order matter here, it executes from the top to bottom
+            modifier = Modifier
                 .fillMaxWidth()
-                .height(200.dp)   //We define first the width and the height of the box
-                .clip(RoundedCornerShape(16.dp))  //then we clip the area of the rectangle
-                .background(currentColor)  //and finally fill it with a color
+                .aspectRatio(16 / 9f)
+                .clip(RoundedCornerShape(24.dp))
+                .background(currentColor)
         )
-
         Text(
-            text = hexCode,
-            modifier = Modifier.align(Alignment.CenterHorizontally)
+            text = hexCode
         )
-
-
-        Spacer(modifier = Modifier.height(100.dp))
-
-        //red slider
-        Text(
-            text = "Red: $redInt",
-            modifier = Modifier.align(Alignment.Start)
-        )
-        Slider(
-            value = red,
-            onValueChange = { red = it },
-            valueRange = 0f..1f
-        )
-
-        //green slider
-        Text(
-            text = "Green: $greenInt",
-            modifier = Modifier.align(Alignment.Start)
-        )
-        Slider(
-            value = green,
-            onValueChange = { green = it },
-            valueRange = 0f..1f
-        )
-
-        //blue slider
-        Text(
-            text = "Blue: $blueInt",
-            modifier = Modifier.align(Alignment.Start)
-        )
-        Slider(
-            value = blue,
-            onValueChange = { blue = it},
-            valueRange = 0f..1f
-        )
-
-        Spacer(modifier = Modifier.height(100.dp))
-
-
+        when(selectedMode){
+            ColorMode.RGB -> {
+                RgbSliders(color = currentColor, onColorChange = { currentColor = it})
+            }
+            ColorMode.HSV -> {
+                HsvSliders(color = currentColor, onColorChange = {currentColor = it})
+            }
+            ColorMode.HSL -> {
+                HslSliders(color = currentColor, onColorChange = {currentColor = it})
+            }
+        }
+        val clipboard = LocalClipboard.current
+        val scope = rememberCoroutineScope()
+        val context = LocalContext.current
         Button(
             onClick = {
                 val clipEntry = ClipEntry(
@@ -147,29 +134,151 @@ fun ColorPickerScreen(modifier: Modifier = Modifier){
         ) {
             Text(text = "Copy Hex Code")
         }
+
+    }
+}
+
+@Composable
+fun ColorSliderRow(label: String, value: Float, valueRange: ClosedFloatingPointRange<Float> = 0f..1f, onValueChange: (Float) -> Unit){
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text("%.2f".format(value), style = MaterialTheme.typography.bodySmall)
+        }
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            valueRange = valueRange
+        )
+    }
+}
+
+@Composable
+fun RgbSliders(color: Color, onColorChange: (Color) -> Unit){
+    Column(
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        ColorSliderRow("Red", color.red, valueRange = 0f..1f, onValueChange = { onColorChange(color.copy(red = it))})
+        ColorSliderRow("Green", color.green, valueRange = 0f..1f, onValueChange = { onColorChange(color.copy(green = it))})
+        ColorSliderRow("Blue", color.blue, valueRange = 0f..1f, onValueChange = { onColorChange(color.copy(blue = it))})
+    }
+}
+
+@Composable
+fun HsvSliders(color: Color, onColorChange: (Color) -> Unit) {
+    // 1. Keep track of HSV state locally without re-calculating on every 'color' change
+    var hsv by remember {
+        mutableStateOf(
+            FloatArray(3).apply {
+                AndroidColor.colorToHSV(color.toArgb(), this)
+            }
+        )
     }
 
+    // 2. Sync local state if external 'color' changes (e.g., switched tabs from RGB mode)
+    LaunchedEffect(color) {
+        val currentRgbFromHsv = Color(AndroidColor.HSVToColor(hsv))
+        // Only re-parse if the incoming color isn't what we just generated
+        if (color != currentRgbFromHsv) {
+            val newHsv = FloatArray(3)
+            AndroidColor.colorToHSV(color.toArgb(), newHsv)
+            hsv = newHsv
+        }
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        ColorSliderRow(
+            label = "Hue",
+            value = hsv[0],
+            valueRange = 0f..360f,
+            onValueChange = { newHue ->
+                // Clamp to prevent 360f wrapping to 0f
+                val safeHue = if (newHue >= 360f) 359.99f else newHue
+                val updatedHsv = hsv.copyOf().apply { this[0] = safeHue }
+                hsv = updatedHsv
+                onColorChange(Color(AndroidColor.HSVToColor(updatedHsv)))
+            }
+        )
+        ColorSliderRow(
+            label = "Saturation",
+            value = hsv[1],
+            valueRange = 0f..1f,
+            onValueChange = { newSat ->
+                val updatedHsv = hsv.copyOf().apply { this[1] = newSat }
+                hsv = updatedHsv
+                onColorChange(Color(AndroidColor.HSVToColor(updatedHsv)))
+            }
+        )
+        ColorSliderRow(
+            label = "Value",
+            value = hsv[2],
+            valueRange = 0f..1f,
+            onValueChange = { newValue ->
+                val updatedHsv = hsv.copyOf().apply { this[2] = newValue }
+                hsv = updatedHsv
+                onColorChange(Color(AndroidColor.HSVToColor(updatedHsv)))
+            }
+        )
+    }
 }
-/*
-In order to do the rgb, hsv and hsl conversion I need a few things:
-- I need to be able to see the current state
-- I need to be able to change the texts that are above each slider, it can't still be red if it's hsv
-- I need to be able to store all the normalized data in 3 variables instead of storing converted numbers
-- I need my functions to be flexible enough to change their formula according to the state in order for me to not need
-to create functions for conversion. If I store only normalized data and my functions can conditionally change their formula
-I should be able to output all 3 colors without needing conversion
-- The output under the rectangle shouldn't be always a hex code but should instead be whatever format we're following
- */
 
+@Composable
+fun HslSliders(color: Color, onColorChange: (Color) -> Unit) {
+    var hsl by remember {
+        mutableStateOf(
+            FloatArray(3).apply {
+                ColorUtils.colorToHSL(color.toArgb(), this)
+            }
+        )
+    }
 
+    LaunchedEffect(color) {
+        val currentRgbFromHsl = Color(ColorUtils.HSLToColor(hsl))
+        if (color != currentRgbFromHsl) {
+            val newHsl = FloatArray(3)
+            ColorUtils.colorToHSL(color.toArgb(), newHsl)
+            hsl = newHsl
+        }
+    }
 
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        ColorSliderRow(
+            label = "Hue",
+            value = hsl[0],
+            valueRange = 0f..360f,
+            onValueChange = { newHue ->
+                val safeHue = if (newHue >= 360f) 359.99f else newHue
+                val updatedHsl = hsl.copyOf().apply { this[0] = safeHue }
+                hsl = updatedHsl // FIX: Assigning updatedHsl updates the state so UI re-renders!
+                onColorChange(Color(ColorUtils.HSLToColor(updatedHsl)))
+            }
+        )
+        ColorSliderRow(
+            label = "Saturation",
+            value = hsl[1],
+            valueRange = 0f..1f,
+            onValueChange = { newSat ->
+                val updatedHsl = hsl.copyOf().apply { this[1] = newSat }
+                hsl = updatedHsl
+                onColorChange(Color(ColorUtils.HSLToColor(updatedHsl)))
+            }
+        )
+        ColorSliderRow(
+            label = "Lightness",
+            value = hsl[2],
+            valueRange = 0f..1f,
+            onValueChange = { newLight ->
+                val updatedHsl = hsl.copyOf().apply { this[2] = newLight }
+                hsl = updatedHsl
+                onColorChange(Color(ColorUtils.HSLToColor(updatedHsl)))
+            }
+        )
+    }
+}
 
-
-/*
-TODO:
-- Add a notification when copying to the clipboard ✓
-- Add a toggle to switch between rgb, hsv and hsl
-- Add a save color button that appends the current color to scrollable grid
-- Try to save the saved colors in the phone
-- Make the sliders colored
- */
+enum class ColorMode {RGB, HSV, HSL}
