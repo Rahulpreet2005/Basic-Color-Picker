@@ -52,6 +52,8 @@ import kotlinx.coroutines.launch
 import androidx.compose.ui.platform.LocalContext
 import android.graphics.Color as AndroidColor
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.sp
 import androidx.core.graphics.ColorUtils
 import kotlinx.serialization.descriptors.PrimitiveKind
 
@@ -79,10 +81,26 @@ fun ColorPickerScreen(modifier: Modifier = Modifier){
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(16.dp),
+            .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Top
     ){
+        Box(
+            modifier = Modifier
+                .padding(top = 16.dp)
+                .fillMaxWidth()
+                .aspectRatio(16 / 9f)
+                .clip(RoundedCornerShape(24.dp))
+                .background(currentColor)
+        )
+        Text(
+            text = hexCode,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.Bold
+        )
+
+        Spacer(modifier = Modifier.height(40.dp))
+
         SingleChoiceSegmentedButtonRow(
             modifier = Modifier.fillMaxWidth()
         ) {
@@ -96,16 +114,9 @@ fun ColorPickerScreen(modifier: Modifier = Modifier){
                 }
             }
         }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .aspectRatio(16 / 9f)
-                .clip(RoundedCornerShape(24.dp))
-                .background(currentColor)
-        )
-        Text(
-            text = hexCode
-        )
+
+        Spacer(modifier = Modifier.height(40.dp))
+
         when(selectedMode){
             ColorMode.RGB -> {
                 RgbSliders(color = currentColor, onColorChange = { currentColor = it})
@@ -120,6 +131,9 @@ fun ColorPickerScreen(modifier: Modifier = Modifier){
         val clipboard = LocalClipboard.current
         val scope = rememberCoroutineScope()
         val context = LocalContext.current
+
+        Spacer(modifier = Modifier.height(40.dp))
+
         Button(
             onClick = {
                 val clipEntry = ClipEntry(
